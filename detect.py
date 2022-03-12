@@ -32,6 +32,7 @@ from pathlib import Path
 import cv2
 import torch
 import torch.backends.cudnn as cudnn
+import preprocessing_cuda
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -113,16 +114,23 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         bs = 1  # batch_size
     vid_path, vid_writer = [None] * bs, [None] * bs
 
+    # Memory Allocation
+    # TODO : Get meta data from dataset
+    imBuf = torch.ByteTensor(3,384,640).to(device)
+    if half:
+        im = torch.HalfTensor(3,384,640).to(device)
+    else:
+        im = torch.FloatTensor(3,384,640).to(device)
+    if len(im.shape) == 3:
+        im = im[None]  # expand for batch dim
+
     # Run inference
     model.warmup(imgsz=(1 if pt else bs, 3, *imgsz), half=half)  # warmup
     dt, seen = [0.0, 0.0, 0.0], 0
-    for path, im, im0s, vid_cap, s in dataset:
+    for path, imTemp, im0s, vid_cap, s in dataset:
         t1 = time_sync()
-        im = torch.from_numpy(im).to(device)
-        im = im.half() if half else im.float()  # uint8 to fp16/32
-        im /= 255  # 0 - 255 to 0.0 - 1.0
-        if len(im.shape) == 3:
-            im = im[None]  # expand for batch dim
+        imTemp = torch.from_numpy(imTemp) # uint8
+        preprocessing_cuda.preprocessing(imTemp,imBuf,im,half)
         t2 = time_sync()
         dt[0] += t2 - t1
 
@@ -205,7 +213,7 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
                     vid_writer[i].write(im0)
 
         # Print time (inference-only)
-        LOGGER.info(f'{s}Done. ({t3 - t2:.3f}s)')
+        LOGGER.info(f'{s}Done. ({t2 - t1:.4f}s) ({t3 - t2:.3f}s)')
 
     # Print results
     t = tuple(x / seen * 1E3 for x in dt)  # speeds per image
