@@ -32,7 +32,7 @@ from pathlib import Path
 import cv2
 import torch
 import torch.backends.cudnn as cudnn
-import preprocessing_cuda
+import custom_cuda
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -43,7 +43,7 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 from models.common import DetectMultiBackend
 from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
 from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, colorstr,
-                           increment_path, non_max_suppression, print_args, scale_coords, strip_optimizer, xyxy2xywh)
+                           increment_path, non_max_suppression, non_max_suppression_custom,print_args, scale_coords, strip_optimizer, xyxy2xywh)
 from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, time_sync
 
@@ -157,7 +157,7 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
             with torch.cuda.stream(streams[idx]):
                 _, imTemp, _, _, _ = item
                 imTemp = torch.from_numpy(imTemp) # uint8
-                preprocessing_cuda.preprocessing(imTemp,imBuf[idx],im[idx],half)
+                custom_cuda.preprocessing(imTemp,imBuf[idx],im[idx],half)
         t2 = time_sync()
         dt[0] += t2 - t1
 
@@ -172,7 +172,7 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
 
         for idx, item in enumerate(data):
             with torch.cuda.stream(streams[idx]):
-                result[idx] = non_max_suppression(result[idx], conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
+                result[idx] = non_max_suppression_custom(result[idx], conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
         dt[2] += time_sync() - t3
 
         for idx, item in enumerate(data):

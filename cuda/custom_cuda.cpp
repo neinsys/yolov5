@@ -22,6 +22,22 @@ void preprocessing(torch::Tensor src, torch::Tensor buf, torch::Tensor dst,
   preprocessing_cuda(src, buf, dst, half);
 }
 
+int nms_cuda(torch::Tensor boxes, torch::Tensor score, float iou_threshold,
+             torch::Tensor result, torch::Tensor check,
+             torch::Tensor score_temp);
+
+int nms(torch::Tensor boxes, torch::Tensor score, float iou_threshold,
+        torch::Tensor result, torch::Tensor check, torch::Tensor score_temp) {
+  CHECK_INPUT(boxes);
+  CHECK_INPUT(score);
+  CHECK_INPUT(result);
+  CHECK_INPUT(check);
+  CHECK_INPUT(score_temp);
+
+  return nms_cuda(boxes, score, iou_threshold, result, check, score_temp);
+}
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("preprocessing", &preprocessing, "preprocessing (CUDA)");
+  m.def("nms", &nms, "nms (CUDA)");
 }
